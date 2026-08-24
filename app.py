@@ -211,6 +211,24 @@ def delete_workout(workout_id):
     conn.commit()
     conn.close()
 
+# --- 週重訓健身紀錄查詢 (週一到週日) ---
+def get_weekly_workout_summary(target_date):
+    # 計算選取日期所在週的週一與週日
+    start_of_week = target_date - timedelta(days=target_date.weekday())
+    end_of_week = start_of_week + timedelta(days=6)
+    
+    conn = sqlite3.connect(DB_FILE)
+    df = pd.read_sql_query(
+        """SELECT log_date AS 日期, body_part AS 訓練部位, item AS 運動名稱, rpe AS RPE自覺強度, 
+                  calories_burned AS 消耗熱量kcal, workout_notes AS 動作與組數筆記 
+           FROM workouts 
+           WHERE workout_type = '重訓' AND log_date >= ? AND log_date <= ? 
+           ORDER BY log_date ASC""",
+        conn, params=(start_of_week.strftime("%Y-%m-%d"), end_of_week.strftime("%Y-%m-%d"))
+    )
+    conn.close()
+    return df, start_of_week, end_of_week
+
 # --- 當月跑量與跑鞋統計 ---
 def get_monthly_running_distance(target_date):
     conn = sqlite3.connect(DB_FILE)
@@ -343,13 +361,12 @@ st.sidebar.caption("💡 數字越小越靠前顯示（例如：1 為最上方�
 DEFAULT_SECTIONS = [
     ("新增紀錄區塊", 1, True),
     ("當日攝取進度與目標", 2, True),
-    ("月跑量與跑鞋追蹤", 3, True),
-    ("當日明細清單", 4, True),
-    ("近30天體重與體脂趨勢圖", 5, True),
-    ("熱量與營養趨勢圖", 6, True),
-    ("慢跑心率 vs. 配速散佈圖", 7, True),
-    ("慢跑近7天里程圖", 8, True),
-    ("重訓部位分布圖", 9, False)
+    ("週重訓彙總表格", 3, True),
+    ("月跑量與跑鞋追蹤", 4, True),
+    ("當日明細清單", 5, True),
+    ("近30天體重與體脂趨勢圖", 6, True),
+    ("熱量與營養趨勢圖", 7, True),
+    ("慢跑心率 vs. 配速散佈圖", 8, True),
 ]
 
 section_configs = []
@@ -523,6 +540,22 @@ def render_daily_progress():
     m2.metric("蛋白質剩餘", f"{rem_p:.1f} g", delta=f"已攝取 {consumed_p:.1f}")
     m3.metric("碳水剩餘", f"{rem_carbs:.1f} g", delta=f"已攝取 {consumed_carbs:.1f}")
     m4.metric("脂肪剩餘", f"{rem_f:.1f} g", delta=f"已攝取 {consumed_f:.1f}")
+
+def render_weekly_workout_summary():
+    st.subheader("🏋️ 本週重訓健身紀錄表格")
+    weekly_df, start_w, end_w = get_weekly_workout_summary(selected_date)
+    
+    st.caption(f"📅 **本週區間**：{start_w.strftime('%Y-%m-%d')} (週一) 至 {end_w.strftime('%Y-%m-%d')} (週日)")
+    
+    if not weekly_df.empty:
+        # 使用 Streamlit dataframe 展現結構化表格
+        st.dataframe(
+            weekly_df,
+            use_container_width=True,
+            hide_index=True
+        )
+    else:
+        st.info("本週尚無重訓健身紀錄。可以在「新增紀錄 -> 🏃 新增運動 -> 🏋️ 重訓/健身」輸入紀錄！")
 
 def render_monthly_run_and_shoes():
     monthly_dist, run_count = get_monthly_running_distance(selected_date)
@@ -739,55 +772,29 @@ def render_pace_hr_chart():
                 alt.Tooltip('item:N', title='項目'),
                 alt.Tooltip('distance:Q', title='距離 (km)', format='.2f'),
                 alt.Tooltip('配速:N', title='配速'),
-                alt.Tooltip('avg_hr:Q', title='平均心率 (bpm)'),
-                alt.Tooltip('shoe:N', title='跑鞋')
+                alt.Tooltip('avg_hr:Q', title='平均心率 (bpm)')
             ]
         ).interactive()
         st.altair_chart(scatter_chart, use_container_width=True)
     else:
-        st.info("尚無包含平均心率的慢跑紀錄，填寫心率後即可自動生成散佈圖。")
+        st.info("尚無包含平均心率的慢跑紀錄數據。")
 
-def render_run_chart():
-    st.markdown("#### 🏃 近 7 天慢跑里程")
-    recent_logs_df, recent_workouts_df = get_recent_logs(days=7)
-    today_dt = date.today()
-    date_range = [(today_dt - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(6, -1, -1)]
+# -----------------------------------------------------------------------------
+# 4. 區塊動態分流渲染
+# -----------------------------------------------------------------------------
 
-    if not recent_workouts_df.empty:
-        workout_summary = recent_workouts_df.groupby("log_date").agg({"distance": "sum"}).reindex(date_range).fillna(0).reset_index()
-    else:
-        workout_summary = pd.DataFrame({"log_date": date_range, "distance": [0.0]*7})
-    workout_summary.rename(columns={"log_date": "日期", "distance": "慢跑里程(km)"}, inplace=True)
-    st.bar_chart(workout_summary, x="日期", y="慢跑里程(km)", color="#5A738E")
-
-def render_part_chart():
-    st.markdown("#### 📊 近 7 天重訓部位分布")
-    _, recent_workouts_df = get_recent_logs(days=7)
-    if not recent_workouts_df.empty and "body_part" in recent_workouts_df.columns:
-        part_df = recent_workouts_df[recent_workouts_df["workout_type"] == "重訓"]
-        if not part_df.empty:
-            part_counts = part_df["body_part"].value_counts()
-            st.bar_chart(part_counts, color="#5A738E")
-        else:
-            st.info("近 7 天尚無重訓資料。")
-    else:
-        st.info("近 7 天尚無重訓資料。")
-
-# 區塊渲染對應表
-SECTION_MAP = {
+section_mapping = {
     "新增紀錄區塊": render_add_records,
     "當日攝取進度與目標": render_daily_progress,
+    "週重訓彙總表格": render_weekly_workout_summary,
     "月跑量與跑鞋追蹤": render_monthly_run_and_shoes,
     "當日明細清單": render_daily_logs,
     "近30天體重與體脂趨勢圖": render_weight_chart,
     "熱量與營養趨勢圖": render_cal_chart,
-    "慢跑心率 vs. 配速散佈圖": render_pace_hr_chart,
-    "慢跑近7天里程圖": render_run_chart,
-    "重訓部位分布圖": render_part_chart,
+    "慢跑心率 vs. 配速散佈圖": render_pace_hr_chart
 }
 
-# 依據使用者設定的數字順序繪製介面
-for section_name in ordered_sections:
-    st.divider()
-    if section_name in SECTION_MAP:
-        SECTION_MAP[section_name]()
+for sec_name in ordered_sections:
+    if sec_name in section_mapping:
+        section_mapping[sec_name]()
+        st.divider()
