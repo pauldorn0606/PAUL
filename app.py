@@ -38,6 +38,7 @@ def init_db():
             avg_hr REAL,
             body_part TEXT,
             volume_kg REAL,
+            workout_notes TEXT,
             rpe REAL,
             shoe TEXT
         )
@@ -68,6 +69,7 @@ def init_db():
         "avg_hr": "REAL",
         "body_part": "TEXT",
         "volume_kg": "REAL",
+        "workout_notes": "TEXT",
         "rpe": "REAL",
         "shoe": "TEXT"
     }
@@ -162,13 +164,13 @@ def delete_log(log_id):
     conn.close()
 
 # --- 運動 DB 操作 ---
-def add_workout(log_date, item, calories_burned, workout_type, distance=None, duration_min=None, avg_hr=None, body_part=None, volume_kg=None, rpe=None, shoe=None):
+def add_workout(log_date, item, calories_burned, workout_type, distance=None, duration_min=None, avg_hr=None, body_part=None, volume_kg=None, workout_notes=None, rpe=None, shoe=None):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute('''
-        INSERT INTO workouts (log_date, item, calories_burned, workout_type, distance, duration_min, avg_hr, body_part, volume_kg, rpe, shoe)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (log_date, item, calories_burned, workout_type, distance, duration_min, avg_hr, body_part, volume_kg, rpe, shoe))
+        INSERT INTO workouts (log_date, item, calories_burned, workout_type, distance, duration_min, avg_hr, body_part, volume_kg, workout_notes, rpe, shoe)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (log_date, item, calories_burned, workout_type, distance, duration_min, avg_hr, body_part, volume_kg, workout_notes, rpe, shoe))
     conn.commit()
     conn.close()
 
@@ -242,9 +244,9 @@ def get_recent_logs(days=7):
 
 def get_all_logs():
     conn = sqlite3.connect(DB_FILE)
-    logs_df = pd.read_sql_query("SELECT '飲食' as 類別, log_date, item, calories, protein, carbs, fat, NULL as calories_burned, NULL as workout_type, NULL as distance, NULL as duration_min, NULL as avg_hr, NULL as body_part, NULL as volume_kg, NULL as rpe, NULL as shoe FROM logs", conn)
-    workouts_df = pd.read_sql_query("SELECT '運動' as 類別, log_date, item, NULL as calories, NULL as protein, NULL as carbs, NULL as fat, calories_burned, workout_type, distance, duration_min, avg_hr, body_part, volume_kg, rpe, shoe FROM workouts", conn)
-    weight_df = pd.read_sql_query("SELECT '體重' as 類別, log_date, note as item, NULL as calories, NULL as protein, NULL as carbs, NULL as fat, NULL as calories_burned, NULL as workout_type, NULL as distance, NULL as duration_min, NULL as avg_hr, NULL as body_part, NULL as volume_kg, NULL as rpe, NULL as shoe FROM weight_logs", conn)
+    logs_df = pd.read_sql_query("SELECT '飲食' as 類別, log_date, item, calories, protein, carbs, fat, NULL as calories_burned, NULL as workout_type, NULL as distance, NULL as duration_min, NULL as avg_hr, NULL as body_part, NULL as workout_notes, NULL as rpe, NULL as shoe FROM logs", conn)
+    workouts_df = pd.read_sql_query("SELECT '運動' as 類別, log_date, item, NULL as calories, NULL as protein, NULL as carbs, NULL as fat, calories_burned, workout_type, distance, duration_min, avg_hr, body_part, workout_notes, rpe, shoe FROM workouts", conn)
+    weight_df = pd.read_sql_query("SELECT '體重' as 類別, log_date, note as item, NULL as calories, NULL as protein, NULL as carbs, NULL as fat, NULL as calories_burned, NULL as workout_type, NULL as distance, NULL as duration_min, NULL as avg_hr, NULL as body_part, NULL as workout_notes, NULL as rpe, NULL as shoe FROM weight_logs", conn)
     conn.close()
     combined = pd.concat([logs_df, workouts_df, weight_df]).sort_values(by=["log_date"], ascending=False)
     return combined
@@ -271,24 +273,16 @@ st.set_page_config(page_title="每日營養與運動紀錄器", page_icon="🥗"
 # 全域灰藍色主題 CSS 覆蓋
 st.markdown("""
     <style>
-    /* 主色調：灰藍色 (#5A738E) */
-    
-    /* 側邊欄控制項外框與背景調整 */
     div[data-testid="stSidebar"] {
         background-color: #F8FAFC !important;
     }
-    
-    /* 按鈕與進度條樣式 */
     .stButton > button[kind="primary"] {
         background-color: #5A738E !important;
         border-color: #5A738E !important;
     }
-    
     .stProgress > div > div > div > div {
         background-color: #5A738E !important;
     }
-    
-    /* 數字順序輸入框容器 */
     .order-box {
         background-color: #EFF4F8;
         padding: 8px 12px;
@@ -331,8 +325,7 @@ DEFAULT_SECTIONS = [
     ("熱量與營養趨勢圖", 6, True),
     ("慢跑心率 vs. 配速散佈圖", 7, True),
     ("慢跑近7天里程圖", 8, True),
-    ("重訓總量趨勢圖", 9, False),
-    ("重訓部位分布圖", 10, False)
+    ("重訓部位分布圖", 9, False)
 ]
 
 section_configs = []
@@ -432,18 +425,19 @@ def render_add_records():
 
             elif workout_category == "🏋️ 重訓/健身":
                 workout_name = st.text_input("運動名稱", value="重量訓練")
+                body_part_in = st.selectbox("主要訓練部位", ["胸部", "背部", "腿部", "肩部", "手臂", "核心", "全身/其他"])
+                notes_in = st.text_area("動作與組數紀錄 (文字紀錄)", placeholder="例如：\n臥推 60kg x 8r x 4s\n上斜啞鈴臥推 20kg x 10r x 3s", height=100)
+                
                 col_a, col_b = st.columns(2)
                 with col_a:
-                    body_part_in = st.selectbox("主要訓練部位", ["胸部", "背部", "腿部", "肩部", "手臂", "核心", "全身/其他"])
-                    vol_in = st.number_input("總訓練量 Volume (kg)", min_value=0.0, value=None, placeholder="重量x組數x次數", step=50.0)
-                with col_b:
                     rpe_in = st.slider("自覺強度 (RPE 1-10)", min_value=1, max_value=10, value=7)
+                with col_b:
                     cal_burned_in = st.number_input("估計消耗熱量 (kcal)", min_value=0.0, value=None, placeholder="0", step=10.0)
                 
                 submit_workout = st.form_submit_button("加入重訓紀錄", use_container_width=True)
                 if submit_workout:
                     b_val = cal_burned_in if cal_burned_in is not None else 0.0
-                    add_workout(date_str, workout_name, b_val, "重訓", body_part=body_part_in, volume_kg=vol_in, rpe=rpe_in)
+                    add_workout(date_str, workout_name, b_val, "重訓", body_part=body_part_in, workout_notes=notes_in, rpe=rpe_in)
                     st.toast(f"已加入重訓紀錄：{body_part_in}")
                     st.rerun()
 
@@ -498,7 +492,6 @@ def render_daily_progress():
     m3.metric("碳水剩餘", f"{rem_carbs:.1f} g", delta=f"已攝取 {consumed_carbs:.1f}")
     m4.metric("脂肪剩餘", f"{rem_f:.1f} g", delta=f"已攝取 {consumed_f:.1f}")
 
-# 月跑量與跑鞋里程合併區塊
 def render_monthly_run_and_shoes():
     monthly_dist, run_count = get_monthly_running_distance(selected_date)
     last_day_of_month = calendar.monthrange(selected_date.year, selected_date.month)[1]
@@ -570,11 +563,12 @@ def render_daily_logs():
                             f"{shoe_str}"
                         )
                     elif w_type == "重訓":
+                        notes_str = f"\n> {row['workout_notes'].replace(chr(10), ' / ')}" if row.get('workout_notes') else ""
                         st.write(
                             f"**🏋️ {row['item']} ({row['body_part'] or '未設定'})** — "
-                            f"總訓練量: **{row['volume_kg'] or 0:.0f} kg** | "
                             f"RPE: **{row['rpe'] or '-'}** | "
                             f"消耗: {row['calories_burned']:.0f} kcal"
+                            f"{notes_str}"
                         )
                     else:
                         st.write(
@@ -605,10 +599,10 @@ def render_cal_chart():
 
     if not recent_workouts_df.empty:
         workout_summary = recent_workouts_df.groupby("log_date").agg({
-            "calories_burned": "sum", "distance": "sum", "volume_kg": "sum"
+            "calories_burned": "sum", "distance": "sum"
         }).reindex(date_range).fillna(0)
     else:
-        workout_summary = pd.DataFrame(0, index=date_range, columns=["calories_burned", "distance", "volume_kg"])
+        workout_summary = pd.DataFrame(0, index=date_range, columns=["calories_burned", "distance"])
 
     daily_summary = food_summary.join(workout_summary).reset_index()
     daily_summary.rename(columns={
@@ -655,19 +649,6 @@ def render_run_chart():
     workout_summary.rename(columns={"log_date": "日期", "distance": "慢跑里程(km)"}, inplace=True)
     st.bar_chart(workout_summary, x="日期", y="慢跑里程(km)", color="#5A738E")
 
-def render_gym_chart():
-    st.markdown("#### 🏋️ 近 7 天重訓總量")
-    recent_logs_df, recent_workouts_df = get_recent_logs(days=7)
-    today_dt = date.today()
-    date_range = [(today_dt - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(6, -1, -1)]
-
-    if not recent_workouts_df.empty:
-        workout_summary = recent_workouts_df.groupby("log_date").agg({"volume_kg": "sum"}).reindex(date_range).fillna(0).reset_index()
-    else:
-        workout_summary = pd.DataFrame({"log_date": date_range, "volume_kg": [0.0]*7})
-    workout_summary.rename(columns={"log_date": "日期", "volume_kg": "重訓總量(kg)"}, inplace=True)
-    st.bar_chart(workout_summary, x="日期", y="重訓總量(kg)", color="#4A607A")
-
 def render_part_chart():
     st.markdown("#### 📊 近 7 天重訓部位分布")
     _, recent_workouts_df = get_recent_logs(days=7)
@@ -691,7 +672,6 @@ SECTION_MAP = {
     "熱量與營養趨勢圖": render_cal_chart,
     "慢跑心率 vs. 配速散佈圖": render_pace_hr_chart,
     "慢跑近7天里程圖": render_run_chart,
-    "重訓總量趨勢圖": render_gym_chart,
     "重訓部位分布圖": render_part_chart,
 }
 
