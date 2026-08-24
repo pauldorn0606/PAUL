@@ -198,6 +198,17 @@ def add_workout(log_date, item, calories_burned, workout_type, distance=None, du
     conn.commit()
     conn.close()
 
+def update_workout(workout_id, item, calories_burned, workout_type, distance=None, duration_min=None, avg_hr=None, body_part=None, workout_notes=None, rpe=None, shoe=None):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('''
+        UPDATE workouts
+        SET item = ?, calories_burned = ?, workout_type = ?, distance = ?, duration_min = ?, avg_hr = ?, body_part = ?, workout_notes = ?, rpe = ?, shoe = ?
+        WHERE id = ?
+    ''', (item, calories_burned, workout_type, distance, duration_min, avg_hr, body_part, workout_notes, rpe, shoe, workout_id))
+    conn.commit()
+    conn.close()
+
 def get_workouts_by_date(log_date):
     conn = sqlite3.connect(DB_FILE)
     df = pd.read_sql_query("SELECT * FROM workouts WHERE log_date = ?", conn, params=(log_date,))
@@ -213,7 +224,6 @@ def delete_workout(workout_id):
 
 # --- 週重訓健身紀錄查詢 (週一到週日) ---
 def get_weekly_workout_summary(target_date):
-    # 計算選取日期所在週的週一與週日
     start_of_week = target_date - timedelta(days=target_date.weekday())
     end_of_week = start_of_week + timedelta(days=6)
     
@@ -325,13 +335,6 @@ st.markdown("""
     .stProgress > div > div > div > div {
         background-color: #5A738E !important;
     }
-    .order-box {
-        background-color: #EFF4F8;
-        padding: 8px 12px;
-        border-radius: 6px;
-        border-left: 4px solid #5A738E;
-        margin-bottom: 8px;
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -388,7 +391,6 @@ with st.sidebar.expander("⚙️ 調整區塊順序與開關", expanded=True):
         if show_sec:
             section_configs.append((sec_name, order_val))
 
-# 依數字排序區塊
 section_configs.sort(key=lambda x: x[1])
 ordered_sections = [sec[0] for sec in section_configs]
 
@@ -548,11 +550,17 @@ def render_weekly_workout_summary():
     st.caption(f"📅 **本週區間**：{start_w.strftime('%Y-%m-%d')} (週一) 至 {end_w.strftime('%Y-%m-%d')} (週日)")
     
     if not weekly_df.empty:
-        # 使用 Streamlit dataframe 展現結構化表格
+        # 使用 column_config 設定自動換行 (wrap)
         st.dataframe(
             weekly_df,
             use_container_width=True,
-            hide_index=True
+            hide_index=True,
+            column_config={
+                "動作與組數筆記": st.column_config.TextColumn(
+                    "動作與組數筆記",
+                    width="large"
+                )
+            }
         )
     else:
         st.info("本週尚無重訓健身紀錄。可以在「新增紀錄 -> 🏃 新增運動 -> 🏋️ 重訓/健身」輸入紀錄！")
@@ -619,7 +627,6 @@ def render_daily_logs():
                         st.toast(f"已刪除飲食：{row['item']}")
                         st.rerun()
 
-                # 展開內嵌編輯表單
                 if st.session_state.get(f"editing_food_{log_id}", False):
                     with st.form(key=f"form_edit_food_{log_id}"):
                         st.caption(f"🛠️ 編輯飲食紀錄 (ID: {log_id})")
@@ -642,13 +649,15 @@ def render_daily_logs():
         else:
             st.info("當天尚無飲食紀錄。")
 
-    # --- 2. 運動明細 (支援刪除) ---
+    # --- 2. 運動明細 (支援編輯與刪除) ---
     with list_tab2:
         if not workouts_df.empty:
             for _, row in workouts_df.iterrows():
-                col_info, col_del = st.columns([4, 1])
+                w_id = row['id']
+                w_type = row.get("workout_type", "其他")
+                
+                col_info, col_edit, col_del = st.columns([3.5, 0.8, 0.8])
                 with col_info:
-                    w_type = row.get("workout_type", "其他")
                     if w_type == "慢跑":
                         pace = calculate_pace(row["distance"], row["duration_min"])
                         shoe_str = f" | 👟 {row['shoe']}" if row.get('shoe') else ""
@@ -672,11 +681,68 @@ def render_daily_logs():
                         st.write(
                             f"**• {row['item']}** — 消耗 **{row['calories_burned']:.0f}** kcal"
                         )
+                with col_edit:
+                    if st.button("✏️ 編輯", key=f"btn_edit_workout_{w_id}"):
+                        st.session_state[f"editing_workout_{w_id}"] = not st.session_state.get(f"editing_workout_{w_id}", False)
                 with col_del:
-                    if st.button("🗑️ 刪除", key=f"del_workout_{row['id']}"):
-                        delete_workout(row['id'])
+                    if st.button("🗑️ 刪除", key=f"del_workout_{w_id}"):
+                        delete_workout(w_id)
                         st.toast("已刪除運動紀錄")
                         st.rerun()
+
+                # 展開內嵌運動編輯表單
+                if st.session_state.get(f"editing_workout_{w_id}", False):
+                    with st.form(key=f"form_edit_workout_{w_id}"):
+                        st.caption(f"🛠️ 編輯運動紀錄 (ID: {w_id})")
+                        e_item = st.text_input("運動名稱", value=row['item'])
+                        
+                        if w_type == "慢跑":
+                            col_e1, col_e2 = st.columns(2)
+                            with col_e1:
+                                e_dist = st.number_input("距離 (km)", value=float(row['distance']) if pd.notna(row['distance']) else 0.0, step=0.1)
+                                e_dur = st.number_input("時間 (分鐘)", value=float(row['duration_min']) if pd.notna(row['duration_min']) else 0.0, step=1.0)
+                                shoe_opts = ["Adidas Boston 13", "Adidas Adizero", "Ricoh / 其他", "不指定"]
+                                curr_shoe_idx = shoe_opts.index(row['shoe']) if row['shoe'] in shoe_opts else 3
+                                e_shoe = st.selectbox("使用跑鞋", shoe_opts, index=curr_shoe_idx)
+                            with col_e2:
+                                e_hr = st.number_input("平均心率 (bpm)", value=int(row['avg_hr']) if pd.notna(row['avg_hr']) else 0, step=1)
+                                e_cal = st.number_input("消耗熱量 (kcal)", value=float(row['calories_burned']) if pd.notna(row['calories_burned']) else 0.0, step=10.0)
+                            
+                            btn_save_w = st.form_submit_button("💾 儲存變更")
+                            if btn_save_w:
+                                update_workout(w_id, e_item.strip(), e_cal, "慢跑", distance=e_dist, duration_min=e_dur, avg_hr=e_hr, shoe=e_shoe)
+                                st.session_state[f"editing_workout_{w_id}"] = False
+                                st.toast("慢跑紀錄已更新！")
+                                st.rerun()
+
+                        elif w_type == "重訓":
+                            body_opts = ["胸部", "背部", "腿部", "肩部", "手臂", "核心", "全身/其他"]
+                            curr_body_idx = body_opts.index(row['body_part']) if row['body_part'] in body_opts else 6
+                            e_body = st.selectbox("主要訓練部位", body_opts, index=curr_body_idx)
+                            e_notes = st.text_area("動作與組數紀錄", value=row['workout_notes'] if pd.notna(row['workout_notes']) else "", height=100)
+                            
+                            col_e1, col_e2 = st.columns(2)
+                            with col_e1:
+                                e_rpe = st.slider("自覺強度 (RPE 1-10)", min_value=1, max_value=10, value=int(row['rpe']) if pd.notna(row['rpe']) else 7)
+                            with col_e2:
+                                e_cal = st.number_input("消耗熱量 (kcal)", value=float(row['calories_burned']) if pd.notna(row['calories_burned']) else 0.0, step=10.0)
+                            
+                            btn_save_w = st.form_submit_button("💾 儲存變更")
+                            if btn_save_w:
+                                update_workout(w_id, e_item.strip(), e_cal, "重訓", body_part=e_body, workout_notes=e_notes, rpe=e_rpe)
+                                st.session_state[f"editing_workout_{w_id}"] = False
+                                st.toast("重訓紀錄已更新！")
+                                st.rerun()
+
+                        else:
+                            e_cal = st.number_input("消耗熱量 (kcal)", value=float(row['calories_burned']) if pd.notna(row['calories_burned']) else 0.0, step=10.0)
+                            btn_save_w = st.form_submit_button("💾 儲存變更")
+                            if btn_save_w:
+                                update_workout(w_id, e_item.strip(), e_cal, "其他")
+                                st.session_state[f"editing_workout_{w_id}"] = False
+                                st.toast("運動紀錄已更新！")
+                                st.rerun()
+                    st.divider()
         else:
             st.info("當天尚無運動紀錄。")
 
