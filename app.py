@@ -803,13 +803,12 @@ def render_add_records(date_str):
                 col_d1, col_d2 = st.columns(2)
                 with col_d1:
                     f_cal = st.number_input(
-                        "每單位熱量 (kcal)", min_value=0.0, step=5.0
+                        "每單位熱量 (kcal)", min_value=0.0, value=None, placeholder="0", step=5.0
                     )
-                    f_p = st.number_input("蛋白質 (g)", min_value=0.0, step=0.5)
+                    f_p = st.number_input("蛋白質 (g)", min_value=0.0, value=None, placeholder="0", step=0.5)
                 with col_d2:
-                    f_c = st.number_input("碳水 (g)", min_value=0.0, step=0.5)
-                    f_f = st.number_input("脂肪 (g)", min_value=0.0, step=0.5)
-
+                    f_f = st.number_input("脂肪 (g)", min_value=0.0, value=None, placeholder="0", step=0.5)
+                    f_c = st.number_input("碳水 (g)", min_value=0.0, value=None, placeholder="0", step=0.5)
                 if st.form_submit_button("💾 儲存至食物資料庫"):
                     if f_name.strip():
                         ok, msg = add_food_item(
