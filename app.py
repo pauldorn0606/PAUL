@@ -886,7 +886,20 @@ def render_weekly_workout_summary(selected_date):
     )
 
     if not summary_df.empty:
-        st.dataframe(summary_df, use_container_width=True, hide_index=True)
+        # 使用 column_config 針對需要自動換行的欄位設定（例如：'項目'、'訓練筆記'）
+        st.dataframe(
+            summary_df,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                # 假設欄位名稱為 "workout_notes"，可依實際 DataFrame 欄位名修改
+                "workout_notes": st.column_config.TextColumn(
+                    "動作與組數筆記",
+                    width="large",  # 可設定欄位寬度 (small, medium, large)
+                ),
+                "item": st.column_config.TextColumn("運動項目"),
+            },
+        )
     else:
         st.info("本週尚無重訓紀錄。")
 
