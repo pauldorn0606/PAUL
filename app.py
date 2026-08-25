@@ -547,7 +547,6 @@ def render_add_records(date_str):
                         value=None,
                         placeholder="0",
                         step=0.5,
-                        placeholder="例如 5.2",
                     )
                     run_dur = st.number_input(
                         "跑步時間 (分鐘)", min_value=0.0, value=None, placeholder="0", step=1.0
