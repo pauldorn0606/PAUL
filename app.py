@@ -938,7 +938,7 @@ def render_daily_logs(date_str):
                 col_info, col_edit, col_del = st.columns([3.5, 0.8, 0.8])
                 with col_info:
                     st.write(
-                        f"**{row['item']}** — {row['calories']:.0f} kcal | P: {row['protein']:.1f}g | C: {row['carbs']:.1f}g | F: {row['fat']:.1f}g"
+                        f"**{row['item']}** — {row['calories']:.0f} kcal | P: {row['protein']:.1f}g | F: {row['fat']:.1f}g | C: {row['carbs']:.1f}g"
                     )
                 with col_edit:
                     if st.button("✏️ 編輯", key=f"btn_edit_food_{log_id}"):
@@ -969,18 +969,17 @@ def render_daily_logs(date_str):
                                 value=float(row["protein"]),
                                 step=1.0,
                             )
-                        with col_e2:
-                            e_c = st.number_input(
-                                "碳水 (g)",
-                                value=float(row["carbs"]),
-                                step=1.0,
-                            )
+                        with col_e2: 
                             e_f = st.number_input(
                                 "脂肪 (g)",
                                 value=float(row["fat"]),
                                 step=1.0,
                             )
-
+                            e_c = st.number_input(
+                                "碳水 (g)",
+                                value=float(row["carbs"]),
+                                step=1.0,
+                            )
                         if st.form_submit_button("💾 儲存變更"):
                             update_log(
                                 log_id, e_item.strip(), e_cal, e_p, e_c, e_f
