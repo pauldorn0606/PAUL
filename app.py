@@ -1420,19 +1420,6 @@ with st.sidebar.expander("⚙️ 調整區塊順序與開關", expanded=True):
 section_configs.sort(key=lambda x: x[1])
 ordered_sections = [sec[0] for sec in section_configs]
 
-# 側邊欄：資料備份
-st.sidebar.divider()
-st.sidebar.header("💾 資料備份")
-all_df = get_all_logs()
-if not all_df.empty:
-    csv_data = all_df.to_csv(index=False).encode('utf-8-sig')
-    st.sidebar.download_button(
-        label="📥 下載完整歷史紀錄 (CSV)",
-        data=csv_data,
-        file_name=f"nutrition_workout_logs_{date.today().strftime('%Y%m%d')}.csv",
-        mime="text/csv"
-    )
-
     # 頂部抬頭
     st.title("🏋️ 個人健康 & 運動數據看板")
 
