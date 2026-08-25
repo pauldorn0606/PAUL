@@ -1382,45 +1382,7 @@ def main():
     )
     target_fat = st.sidebar.number_input("脂肪目標 (g)", value=60.0, step=5.0)
 
-# 側邊欄：數字設定顯示順序
-st.sidebar.divider()
-st.sidebar.header("🔢 區塊順序與顯示設定")
-st.sidebar.caption("💡 數字越小越靠前顯示（例如：1 為最上方）。取消勾選可隱藏該區塊。")
 
-DEFAULT_SECTIONS = [
-    ("新增紀錄區塊", 1, True),
-    ("當日攝取進度與目標", 2, True),
-    ("月跑量與跑鞋追蹤", 3, True),
-    ("當日明細清單", 4, True),
-    ("近30天體重與體脂趨勢圖", 5, True),
-    ("熱量與營養趨勢圖", 6, True),
-    ("慢跑心率 vs. 配速散佈圖", 7, True),
-    ("慢跑近7天里程圖", 8, True),
-    ("重訓部位分布圖", 9, False)
-]
-
-section_configs = []
-
-with st.sidebar.expander("⚙️ 調整區塊順序與開關", expanded=True):
-    for sec_name, default_order, default_show in DEFAULT_SECTIONS:
-        col_chk, col_num = st.columns([2.5, 1.5])
-        with col_chk:
-            show_sec = st.checkbox(sec_name, value=default_show, key=f"show_{sec_name}")
-        with col_num:
-            order_val = st.number_input(
-                "順序",
-                min_value=1,
-                max_value=20,
-                value=default_order,
-                key=f"order_{sec_name}",
-                label_visibility="collapsed"
-            )
-        if show_sec:
-            section_configs.append((sec_name, order_val))
-
-# 依數字排序區塊
-section_configs.sort(key=lambda x: x[1])
-ordered_sections = [sec[0] for sec in section_configs]
 
     # 頂部抬頭
     st.title("🏋️ 個人健康 & 運動數據看板")
