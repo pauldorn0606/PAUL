@@ -1358,7 +1358,7 @@ def render_cal_chart():
 # =============================================================================
 def main():
     st.set_page_config(
-        page_title="個人健康與健身數據看板", page_icon="🏋️", layout="wide"
+        page_title="PAUL個人健康與健身數據看板", page_icon="🏋️", layout="wide"
     )
     init_db()
 
