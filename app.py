@@ -1422,8 +1422,8 @@ with st.sidebar.expander("⚙️ 調整區塊順序與開關", expanded=True):
 section_configs.sort(key=lambda x: x[1])
 ordered_sections = [sec[0] for sec in section_configs]
 
-    # 頂部抬頭
-    st.title("🏋️ 個人健康 & 運動數據看板")
+# 頂部抬頭
+st.title("🏋️ 個人健康 & 運動數據看板")
 
     # 區塊與對應渲染函式的映射字典
     section_mapping = {
