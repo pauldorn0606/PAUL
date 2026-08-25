@@ -916,7 +916,9 @@ def render_daily_logs(date_str):
     weight_df = get_weight_by_date(date_str)
 
     list_tab1, list_tab2, list_tab3 = st.tabs(
-        ["🍱 飲食明細({len(logs_df)})", "🏃 運動明細({len(workouts_df)})", "⚖️ 體重/體脂紀錄({len(weight_df)})"]
+        [f"🍱 飲食明細({len(logs_df)})", 
+         f"🏃 運動明細({len(workouts_df)})", 
+         f"⚖️ 體重/體脂紀錄({len(weight_df)})"]
     )
 
     # 1. 飲食明細
