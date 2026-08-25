@@ -828,6 +828,12 @@ def render_daily_progress(
     st.subheader(f"📊 每日進度與營養目標 ({date_str})")
     logs_df = get_logs_by_date(date_str)
     workouts_df = get_workouts_by_date(date_str)
+    weight_df = get_weight_by_date(date_str)
+    if not weight_df.empty:
+        w_val = weight_df["weight"].iloc[0]
+        fat_val = weight_df["body_fat"].iloc[0] if "body_fat" in weight_df.columns and pd.notna(weight_df["body_fat"].iloc[0]) else None
+        fat_str = f" | 體脂率：**{fat_val:.1f}%**" if fat_val else ""
+        st.info(f"⚖️ **{date_str} 紀錄數據**：體重 **{w_val:.1f} kg**{fat_str}")
 
     tot_cal = logs_df["calories"].sum() if not logs_df.empty else 0.0
     tot_p = logs_df["protein"].sum() if not logs_df.empty else 0.0
