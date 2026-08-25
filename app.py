@@ -1382,7 +1382,7 @@ def main():
     )
     target_fat = st.sidebar.number_input("脂肪目標 (g)", value=60.0, step=5.0)
 
-    # 側邊欄：數字設定顯示順序
+# 側邊欄：數字設定顯示順序
 st.sidebar.divider()
 st.sidebar.header("🔢 區塊順序與顯示設定")
 st.sidebar.caption("💡 數字越小越靠前顯示（例如：1 為最上方）。取消勾選可隱藏該區塊。")
@@ -1422,8 +1422,8 @@ with st.sidebar.expander("⚙️ 調整區塊順序與開關", expanded=True):
 section_configs.sort(key=lambda x: x[1])
 ordered_sections = [sec[0] for sec in section_configs]
 
-# 頂部抬頭
-st.title("🏋️ 個人健康 & 運動數據看板")
+    # 頂部抬頭
+    st.title("🏋️ 個人健康 & 運動數據看板")
 
     # 區塊與對應渲染函式的映射字典
     section_mapping = {
