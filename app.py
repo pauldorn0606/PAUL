@@ -509,13 +509,12 @@ def render_add_records(date_str):
                 col_f1, col_f2 = st.columns(2)
                 with col_f1:
                     f_cal = st.number_input("熱量 (kcal)", min_value=0.0, value=None, placeholder="0",step=10.0)
-                    f_p = st.number_input("蛋白質 (g)", min_value=0.0, step=1.0)
+                    f_p = st.number_input("蛋白質 (g)", min_value=0.0, value=None, placeholder="0",step=1.0)
                 with col_f2:
+                    f_fat = st.number_input("脂肪 (g)", min_value=0.0, value=None, placeholder="0",step=1.0)
                     f_carbs = st.number_input(
-                        "碳水化合物 (g)", min_value=0.0, step=1.0
+                        "碳水化合物 (g)", min_value=0.0, value=None, placeholder="0",step=1.0
                     )
-                    f_fat = st.number_input("脂肪 (g)", min_value=0.0, step=1.0)
-
                 submit_food = st.form_submit_button(
                     "加入飲食紀錄", use_container_width=True
                 )
