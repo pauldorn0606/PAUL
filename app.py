@@ -545,7 +545,7 @@ def render_add_records(date_str):
                         "跑步距離 (km)",
                         min_value=0.0,
                         value=None,
-                        placeholder="0"
+                        placeholder="0",
                         step=0.5,
                         placeholder="例如 5.2",
                     )
