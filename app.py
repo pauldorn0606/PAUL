@@ -674,7 +674,6 @@ def render_add_records(date_str):
                     min_value=0.0,
                     value=None,
                     max_value=200.0,
-                    value=float(curr_w) if curr_w else None,
                     placeholder="0",
                     step=0.1,
                 )
@@ -684,7 +683,6 @@ def render_add_records(date_str):
                     min_value=0.0,
                     value=None,
                     max_value=100.0,
-                    value=float(curr_fat) if curr_fat else None,
                     placeholder="0",
                     step=0.1,
                 )
