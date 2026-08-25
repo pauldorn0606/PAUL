@@ -879,28 +879,25 @@ def render_daily_progress(
 
 
 def render_weekly_workout_summary(selected_date):
+
     st.subheader("🏋️ 本週重訓彙總")
+
     summary_df, start_w, end_w = get_weekly_workout_summary(selected_date)
+
     st.caption(
+
         f"📅 統計區間：{start_w.strftime('%Y-%m-%d')} ~ {end_w.strftime('%Y-%m-%d')}"
+
     )
 
+
+
     if not summary_df.empty:
-        # 使用 column_config 針對需要自動換行的欄位設定（例如：'項目'、'訓練筆記'）
-        st.dataframe(
-            summary_df,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                # 假設欄位名稱為 "workout_notes"，可依實際 DataFrame 欄位名修改
-                "workout_notes": st.column_config.TextColumn(
-                    "動作與組數筆記",
-                    width="large",  # 可設定欄位寬度 (small, medium, large)
-                ),
-                "item": st.column_config.TextColumn("運動項目"),
-            },
-        )
+
+        st.dataframe(summary_df, use_container_width=True, hide_index=True)
+
     else:
+
         st.info("本週尚無重訓紀錄。")
 
 
