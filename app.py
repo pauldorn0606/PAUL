@@ -1,98 +1,435 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+import sqlite3
 import altair as alt
 import pandas as pd
 import streamlit as st
 
-# 假設已從資料庫層載入以下輔助函式 (保留原程式結構)
-# init_db, calculate_pace, delete_workout, update_workout, delete_weight_log,
-# add_or_update_weight, get_recent_weights, get_recent_logs, get_running_history,
-# delete_food_log, update_food_log, get_daily_food_logs, get_daily_workouts, get_daily_weight, etc.
+# =============================================================================
+# 0. 資料庫初始化與輔助函式 (Database & Helper Functions)
+# =============================================================================
+
+
+def get_connection():
+    return sqlite3.connect("health_tracker.db", check_same_thread=False)
+
+
+def init_db():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # 飲食紀錄表
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS food_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        log_date TEXT NOT NULL,
+        item TEXT NOT NULL,
+        calories REAL DEFAULT 0,
+        protein REAL DEFAULT 0,
+        carbs REAL DEFAULT 0,
+        fat REAL DEFAULT 0,
+        meal_type TEXT DEFAULT '未分類'
+    )
+    """)
+
+    # 運動紀錄表
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS workouts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        log_date TEXT NOT NULL,
+        workout_type TEXT NOT NULL,
+        item TEXT NOT NULL,
+        calories_burned REAL DEFAULT 0,
+        distance REAL DEFAULT 0,
+        duration_min REAL DEFAULT 0,
+        avg_hr REAL DEFAULT 0,
+        shoe TEXT DEFAULT '',
+        body_part TEXT DEFAULT '',
+        workout_notes TEXT DEFAULT '',
+        rpe INTEGER DEFAULT 0
+    )
+    """)
+
+    # 體重與體脂紀錄表
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS weight_logs (
+        log_date TEXT PRIMARY KEY,
+        weight REAL NOT NULL,
+        body_fat REAL,
+        note TEXT DEFAULT ''
+    )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+def calculate_pace(distance_km, duration_min):
+    if not distance_km or distance_km <= 0 or not duration_min:
+        return "N/A"
+    total_seconds = duration_min * 60
+    sec_per_km = total_seconds / distance_km
+    pace_min = int(sec_per_km // 60)
+    pace_sec = int(sec_per_km % 60)
+    return f"{pace_min}'{pace_sec:02d}\""
+
+
+# ---------------- CRUD 輔助函式 ----------------
+def delete_food_log(log_id):
+    conn = get_connection()
+    conn.execute("DELETE FROM food_logs WHERE id = ?", (log_id,))
+    conn.commit()
+    conn.close()
+
+
+def update_food_log(log_id, item, calories, protein, carbs, fat, meal_type):
+    conn = get_connection()
+    conn.execute(
+        """
+        UPDATE food_logs 
+        SET item = ?, calories = ?, protein = ?, carbs = ?, fat = ?, meal_type = ?
+        WHERE id = ?
+    """,
+        (item, calories, protein, carbs, fat, meal_type, log_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def delete_workout(workout_id):
+    conn = get_connection()
+    conn.execute("DELETE FROM workouts WHERE id = ?", (workout_id,))
+    conn.commit()
+    conn.close()
+
+
+def update_workout(workout_id, item, calories_burned, workout_type, **kwargs):
+    conn = get_connection()
+    distance = kwargs.get("distance", 0.0)
+    duration_min = kwargs.get("duration_min", 0.0)
+    avg_hr = kwargs.get("avg_hr", 0)
+    shoe = kwargs.get("shoe", "")
+    body_part = kwargs.get("body_part", "")
+    workout_notes = kwargs.get("workout_notes", "")
+    rpe = kwargs.get("rpe", 0)
+
+    conn.execute(
+        """
+        UPDATE workouts 
+        SET item = ?, calories_burned = ?, workout_type = ?, distance = ?, 
+            duration_min = ?, avg_hr = ?, shoe = ?, body_part = ?, 
+            workout_notes = ?, rpe = ?
+        WHERE id = ?
+    """,
+        (
+            item,
+            calories_burned,
+            workout_type,
+            distance,
+            duration_min,
+            avg_hr,
+            shoe,
+            body_part,
+            workout_notes,
+            rpe,
+            workout_id,
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+
+def delete_weight_log(date_str):
+    conn = get_connection()
+    conn.execute("DELETE FROM weight_logs WHERE log_date = ?", (date_str,))
+    conn.commit()
+    conn.close()
+
+
+def add_or_update_weight(date_str, weight, body_fat, note=""):
+    conn = get_connection()
+    conn.execute(
+        """
+        INSERT INTO weight_logs (log_date, weight, body_fat, note)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(log_date) DO UPDATE SET
+            weight=excluded.weight,
+            body_fat=excluded.body_fat,
+            note=excluded.note
+    """,
+        (date_str, weight, body_fat, note),
+    )
+    conn.commit()
+    conn.close()
+
+
+# ---------------- 資料查詢輔助函式 ----------------
+def get_daily_logs(date_str):
+    conn = get_connection()
+    food_df = pd.read_sql_query(
+        "SELECT * FROM food_logs WHERE log_date = ?", conn, params=(date_str,)
+    )
+    workout_df = pd.read_sql_query(
+        "SELECT * FROM workouts WHERE log_date = ?", conn, params=(date_str,)
+    )
+    weight_df = pd.read_sql_query(
+        "SELECT * FROM weight_logs WHERE log_date = ?",
+        conn,
+        params=(date_str,),
+    )
+    conn.close()
+    return food_df, workout_df, weight_df
+
+
+def get_recent_weights(days=30):
+    conn = get_connection()
+    cutoff_date = (date.today() - timedelta(days=days)).strftime("%Y-%m-%d")
+    df = pd.read_sql_query(
+        "SELECT * FROM weight_logs WHERE log_date >= ? ORDER BY log_date ASC",
+        conn,
+        params=(cutoff_date,),
+    )
+    conn.close()
+    return df
+
+
+def get_recent_logs(days=7):
+    conn = get_connection()
+    cutoff_date = (date.today() - timedelta(days=days)).strftime("%Y-%m-%d")
+    food_df = pd.read_sql_query(
+        "SELECT * FROM food_logs WHERE log_date >= ? ORDER BY log_date ASC",
+        conn,
+        params=(cutoff_date,),
+    )
+    workout_df = pd.read_sql_query(
+        "SELECT * FROM workouts WHERE log_date >= ? ORDER BY log_date ASC",
+        conn,
+        params=(cutoff_date,),
+    )
+    conn.close()
+    return food_df, workout_df
 
 
 # =============================================================================
-# 區塊渲染函式群
+# 1. 頁面區塊渲染函式 (UI Components)
 # =============================================================================
 
 
 def render_add_records(date_str):
-    """新增紀錄區塊 (請依原有的輸入表單邏輯串接)"""
-    st.markdown("### 📝 新增紀錄")
-    # 此處保留您原有的新增飲食/運動/體重表單 UI
-    st.caption(f"目前選擇日期：{date_str}")
+    st.markdown(f"### ➕ 新增紀錄 ({date_str})")
+    tab1, tab2, tab3 = st.tabs(
+        ["🥗 飲食紀錄", "🏋️ 運動紀錄", "⚖️ 體重與體脂"]
+    )
+
+    with tab1:
+        with st.form("add_food_form", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                f_item = st.text_input("食物/餐點名稱", placeholder="例如：雞胸肉便當")
+                f_type = st.selectbox(
+                    "餐別", ["早餐", "午餐", "晚餐", "點心/補給"]
+                )
+                f_cal = st.number_input(
+                    "熱量 (kcal)", min_value=0.0, step=10.0
+                )
+            with col2:
+                f_p = st.number_input(
+                    "蛋白質 (g)", min_value=0.0, step=1.0
+                )
+                f_c = st.number_input("碳水化合物 (g)", min_value=0.0, step=1.0)
+                f_f = st.number_input("脂肪 (g)", min_value=0.0, step=1.0)
+
+            if st.form_submit_button("➕ 新增飲食"):
+                if f_item:
+                    conn = get_connection()
+                    conn.execute(
+                        """
+                        INSERT INTO food_logs (log_date, item, calories, protein, carbs, fat, meal_type)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                        (
+                            date_str,
+                            f_item.strip(),
+                            f_cal,
+                            f_p,
+                            f_c,
+                            f_f,
+                            f_type,
+                        ),
+                    )
+                    conn.commit()
+                    conn.close()
+                    st.toast("飲食紀錄新增成功！")
+                    st.rerun()
+                else:
+                    st.warning("請輸入食物名稱。")
+
+    with tab2:
+        with st.form("add_workout_form", clear_on_submit=True):
+            w_type = st.selectbox(
+                "運動類型", ["慢跑", "重訓", "騎車/其他"]
+            )
+            col1, col2 = st.columns(2)
+
+            with col1:
+                w_item = st.text_input(
+                    "運動項目", placeholder="例如：Zone 2 慢跑 / 深蹲"
+                )
+                w_cal = st.number_input(
+                    "消耗熱量 (kcal)", min_value=0.0, step=10.0
+                )
+
+                if w_type == "慢跑":
+                    w_dist = st.number_input(
+                        "距離 (km)", min_value=0.0, step=0.1
+                    )
+                    w_dur = st.number_input(
+                        "時間 (分鐘)", min_value=0.0, step=1.0
+                    )
+                    w_shoe = st.selectbox(
+                        "使用跑鞋",
+                        [
+                            "Adidas Boston 13",
+                            "Adidas Adizero",
+                            "其他跑鞋",
+                            "不指定",
+                        ],
+                    )
+                else:
+                    w_dist, w_dur, w_shoe = 0.0, 0.0, ""
+
+            with col2:
+                if w_type == "慢跑":
+                    w_hr = st.number_input(
+                        "平均心率 (bpm)", min_value=0, step=1
+                    )
+                    w_body, w_notes, w_rpe = "", "", 0
+                elif w_type == "重訓":
+                    w_hr = 0
+                    w_body = st.selectbox(
+                        "主要訓練部位",
+                        [
+                            "胸部",
+                            "背部",
+                            "腿部",
+                            "肩部",
+                            "手臂",
+                            "核心",
+                            "全身/其他",
+                        ],
+                    )
+                    w_rpe = st.slider(
+                        "自覺強度 (RPE 1-10)",
+                        min_value=1,
+                        max_value=10,
+                        value=7,
+                    )
+                    w_notes = st.text_area(
+                        "動作與組數紀錄",
+                        placeholder="例如：槓鈴深蹲 80kg 5x5",
+                        height=70,
+                    )
+                else:
+                    w_hr, w_body, w_notes, w_rpe = 0, "", "", 0
+
+            if st.form_submit_button("➕ 新增運動"):
+                if w_item:
+                    conn = get_connection()
+                    conn.execute(
+                        """
+                        INSERT INTO workouts (log_date, workout_type, item, calories_burned, distance, duration_min, avg_hr, shoe, body_part, workout_notes, rpe)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                        (
+                            date_str,
+                            w_type,
+                            w_item.strip(),
+                            w_cal,
+                            w_dist,
+                            w_dur,
+                            w_hr,
+                            w_shoe,
+                            w_body,
+                            w_notes,
+                            w_rpe,
+                        ),
+                    )
+                    conn.commit()
+                    conn.close()
+                    st.toast("運動紀錄新增成功！")
+                    st.rerun()
+                else:
+                    st.warning("請輸入運動項目名稱。")
+
+    with tab3:
+        with st.form("add_weight_form", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                wt_val = st.number_input(
+                    "體重 (kg)", min_value=0.0, max_value=200.0, step=0.1
+                )
+            with col2:
+                fat_val = st.number_input(
+                    "體脂率 (%)",
+                    min_value=0.0,
+                    max_value=60.0,
+                    step=0.1,
+                    value=0.0,
+                )
+            wt_note = st.text_input("備註 (可選)", placeholder="例如：早起空腹測量")
+
+            if st.form_submit_button("💾 儲存體重/體脂紀錄"):
+                if wt_val > 0:
+                    add_or_update_weight(
+                        date_str,
+                        wt_val,
+                        fat_val if fat_val > 0 else None,
+                        wt_note,
+                    )
+                    st.toast("體重紀錄更新成功！")
+                    st.rerun()
+                else:
+                    st.warning("請輸入有效的體重數值。")
 
 
 def render_daily_progress(
     date_str, target_cal, target_p, target_carbs, target_fat
 ):
-    """當日攝取進度與目標 (包含體重體脂資訊)"""
-    st.markdown("### 📊 當日攝取進度與目標")
+    st.markdown(f"### 🎯 當日進度與營養目標 ({date_str})")
+    food_df, workout_df, weight_df = get_daily_logs(date_str)
 
-    # 取得當天資料
-    food_df = get_daily_food_logs(date_str)
-    weight_df = get_daily_weight(date_str)
+    total_cal = food_df["calories"].sum() if not food_df.empty else 0
+    total_p = food_df["protein"].sum() if not food_df.empty else 0
+    total_c = food_df["carbs"].sum() if not food_df.empty else 0
+    total_f = food_df["fat"].sum() if not food_df.empty else 0
+    burned_cal = (
+        workout_df["calories_burned"].sum() if not workout_df.empty else 0
+    )
 
-    tot_cal = food_df["calories"].sum() if not food_df.empty else 0.0
-    tot_p = food_df["protein"].sum() if not food_df.empty else 0.0
-    tot_c = food_df["carbs"].sum() if not food_df.empty else 0.0
-    tot_f = food_df["fat"].sum() if not food_df.empty else 0.0
-
-    # 體重體脂字串格式化
+    # 體重與體脂顯示邏輯
     if not weight_df.empty:
-        w_row = weight_df.iloc[0]
-        w_val = (
-            f"{w_row['weight']:.1f} kg"
-            if pd.notna(w_row.get("weight"))
+        curr_weight = weight_df.iloc[0]["weight"]
+        curr_fat = weight_df.iloc[0]["body_fat"]
+        weight_str = f"{curr_weight:.1f} kg"
+        fat_str = (
+            f"{curr_fat:.1f}%"
+            if pd.notna(curr_fat) and curr_fat > 0
             else "未紀錄"
         )
-        fat_val = (
-            f"{w_row['body_fat']:.1f} %"
-            if "body_fat" in w_row and pd.notna(w_row["body_fat"])
-            else "未紀錄"
-        )
-        weight_disp = f"{w_val} / {fat_val}"
     else:
-        weight_disp = "未紀錄"
+        weight_str = "今日未紀錄"
+        fat_str = "今日未紀錄"
 
-    # 指標欄位展示 (包含新增的體重體脂欄位)
     col1, col2, col3, col4, col5 = st.columns(5)
-    with col1:
-        st.metric(
-            "🔥 熱量攝取",
-            f"{tot_cal:.0f} kcal",
-            delta=f"{tot_cal - target_cal:.0f} kcal",
-        )
-        st.progress(min(1.0, tot_cal / target_cal if target_cal > 0 else 0.0))
-    with col2:
-        st.metric(
-            "🥩 蛋白質",
-            f"{tot_p:.1f} g",
-            delta=f"{tot_p - target_p:.1f} g",
-        )
-        st.progress(min(1.0, tot_p / target_p if target_p > 0 else 0.0))
-    with col3:
-        st.metric(
-            "🍚 碳水化合物",
-            f"{tot_c:.1f} g",
-            delta=f"{tot_c - target_carbs:.1f} g",
-        )
-        st.progress(min(1.0, tot_c / target_carbs if target_carbs > 0 else 0.0))
-    with col4:
-        st.metric(
-            "🥑 脂肪",
-            f"{tot_f:.1f} g",
-            delta=f"{tot_f - target_fat:.1f} g",
-        )
-        st.progress(min(1.0, tot_f / target_fat if target_fat > 0 else 0.0))
-    with col5:
-        st.metric("⚖️ 當日體重 / 體脂", weight_disp)
+    col1.metric("🔥 淨攝取熱量", f"{total_cal - burned_cal:.0f} kcal", f"目標: {target_cal}")
+    col2.metric("🥩 蛋白質", f"{total_p:.1f} g", f"目標: {target_p}g")
+    col3.metric("🍚 碳水化合物", f"{total_c:.1f} g", f"目標: {target_carbs}g")
+    col4.metric("🥑 脂肪", f"{total_f:.1f} g", f"目標: {target_fat}g")
+    col5.metric("⚖️ 當日體重/體脂", weight_str, f"體脂: {fat_str}")
 
 
 def render_daily_logs(date_str):
-    """當日明細清單"""
-    st.markdown("### 📋 當日明細清單")
-    food_df = get_daily_food_logs(date_str)
-    workouts_df = get_daily_workouts(date_str)
-    weight_df = get_daily_weight(date_str)
+    st.markdown(f"### 📋 當日明細清單 ({date_str})")
+    food_df, workouts_df, weight_df = get_daily_logs(date_str)
 
     list_tab1, list_tab2, list_tab3 = st.tabs(
         ["🥗 飲食明細", "🏋️ 運動明細", "⚖️ 體重紀錄"]
@@ -106,7 +443,8 @@ def render_daily_logs(date_str):
                 col_info, col_edit, col_del = st.columns([3.5, 0.8, 0.8])
                 with col_info:
                     st.write(
-                        f"**{row['meal_type']} | {row['item']}** — {row['calories']:.0f} kcal (🥩 {row['protein']:.1f}g | 🍚 {row['carbs']:.1f}g | 🥑 {row['fat']:.1f}g)"
+                        f"**[{row['meal_type']}] {row['item']}** — {row['calories']:.0f} kcal | "
+                        f"P: {row['protein']:.1f}g | C: {row['carbs']:.1f}g | F: {row['fat']:.1f}g"
                     )
                 with col_edit:
                     if st.button("✏️ 編輯", key=f"btn_edit_food_{log_id}"):
@@ -124,36 +462,46 @@ def render_daily_logs(date_str):
                 if st.session_state.get(f"editing_food_{log_id}", False):
                     with st.form(key=f"form_edit_food_{log_id}"):
                         st.caption(f"🛠️ 編輯飲食紀錄 ID: {log_id}")
-                        e_item = st.text_input("食物名稱", value=row["item"])
+                        e_item = st.text_input("名稱", value=row["item"])
+                        meal_opts = ["早餐", "午餐", "晚餐", "點心/補給"]
+                        curr_meal_idx = (
+                            meal_opts.index(row["meal_type"])
+                            if row["meal_type"] in meal_opts
+                            else 0
+                        )
+                        e_type = st.selectbox(
+                            "餐別", meal_opts, index=curr_meal_idx
+                        )
+
                         col_e1, col_e2, col_e3, col_e4 = st.columns(4)
                         with col_e1:
                             e_cal = st.number_input(
-                                "熱量 (kcal)",
+                                "熱量",
                                 value=float(row["calories"]),
                                 step=10.0,
                             )
                         with col_e2:
                             e_p = st.number_input(
-                                "蛋白質 (g)",
-                                value=float(row["protein"]),
-                                step=1.0,
+                                "蛋白質", value=float(row["protein"]), step=1.0
                             )
                         with col_e3:
                             e_c = st.number_input(
-                                "碳水 (g)",
-                                value=float(row["carbs"]),
-                                step=1.0,
+                                "碳水", value=float(row["carbs"]), step=1.0
                             )
                         with col_e4:
                             e_f = st.number_input(
-                                "脂肪 (g)",
-                                value=float(row["fat"]),
-                                step=1.0,
+                                "脂肪", value=float(row["fat"]), step=1.0
                             )
 
                         if st.form_submit_button("💾 儲存變更"):
                             update_food_log(
-                                log_id, e_item.strip(), e_cal, e_p, e_c, e_f
+                                log_id,
+                                e_item.strip(),
+                                e_cal,
+                                e_p,
+                                e_c,
+                                e_f,
+                                e_type,
                             )
                             st.session_state[f"editing_food_{log_id}"] = False
                             st.toast("飲食紀錄已更新！")
@@ -182,7 +530,7 @@ def render_daily_logs(date_str):
                         )
                         shoe_str = (
                             f" | 跑鞋: {row['shoe']}"
-                            if pd.notna(row["shoe"])
+                            if pd.notna(row["shoe"]) and row["shoe"]
                             else ""
                         )
                         st.write(
@@ -191,12 +539,12 @@ def render_daily_logs(date_str):
                     elif w_type == "重訓":
                         body_str = (
                             f"[{row['body_part']}] "
-                            if pd.notna(row["body_part"])
+                            if pd.notna(row["body_part"]) and row["body_part"]
                             else ""
                         )
                         rpe_str = (
                             f" | RPE: {int(row['rpe'])}"
-                            if pd.notna(row["rpe"])
+                            if pd.notna(row["rpe"]) and row["rpe"] > 0
                             else ""
                         )
                         notes_str = (
@@ -429,7 +777,7 @@ def render_daily_logs(date_str):
                                 "body_fat" in w_row
                                 and pd.notna(w_row["body_fat"])
                             )
-                            else None,
+                            else 0.0,
                             step=0.1,
                         )
                     ew_note = st.text_input(
@@ -441,7 +789,10 @@ def render_daily_logs(date_str):
 
                     if st.form_submit_button("💾 儲存變更") and ew_val:
                         add_or_update_weight(
-                            date_str, ew_val, efat_val, ew_note
+                            date_str,
+                            ew_val,
+                            efat_val if efat_val > 0 else None,
+                            ew_note,
                         )
                         st.session_state[f"editing_weight_{date_str}"] = False
                         st.toast("體重紀錄已更新！")
@@ -451,20 +802,58 @@ def render_daily_logs(date_str):
 
 
 def render_weekly_workout_summary(selected_date):
-    """週重訓彙總表格"""
-    st.markdown("### 🏋️ 週重訓彙總")
-    # 此處保留您原本的週重訓統計渲染邏輯
+    st.markdown("### 🗓️ 週重訓與運動彙總")
+    start_of_week = selected_date - timedelta(days=selected_date.weekday())
+    end_of_week = start_of_week + timedelta(days=6)
+
+    conn = get_connection()
+    query = """
+        SELECT log_date, workout_type, item, body_part, calories_burned, rpe
+        FROM workouts 
+        WHERE log_date BETWEEN ? AND ?
+        ORDER BY log_date ASC
+    """
+    df = pd.read_sql_query(
+        query,
+        conn,
+        params=(
+            start_of_week.strftime("%Y-%m-%d"),
+            end_of_week.strftime("%Y-%m-%d"),
+        ),
+    )
+    conn.close()
+
+    if not df.empty:
+        st.dataframe(df, use_container_width=True)
+    else:
+        st.info("本週尚無運動紀錄。")
 
 
 def render_monthly_run_and_shoes(selected_date):
-    """月跑量與跑鞋追蹤"""
-    st.markdown("### 🏃 月跑量與跑鞋追蹤")
-    # 此處保留您原本的月跑量與跑鞋統計渲染邏輯
+    st.markdown("### 👟 月跑量與跑鞋追蹤")
+    month_start = selected_date.replace(day=1).strftime("%Y-%m-%d")
+
+    conn = get_connection()
+    df = pd.read_sql_query(
+        """
+        SELECT shoe, SUM(distance) as total_dist, COUNT(*) as run_count
+        FROM workouts
+        WHERE workout_type = '慢跑' AND log_date >= ?
+        GROUP BY shoe
+    """,
+        conn,
+        params=(month_start,),
+    )
+    conn.close()
+
+    if not df.empty:
+        st.dataframe(df, use_container_width=True)
+    else:
+        st.info("本月尚無慢跑紀錄。")
 
 
 def render_weight_chart():
-    """近 30 天體重與體脂趨勢圖"""
-    st.markdown("#### ⚖️ 近 30 天體重與體脂趨勢圖")
+    st.markdown("### 📉 近 30 天體重與體脂趨勢圖")
     w_df = get_recent_weights(30)
     if not w_df.empty:
         chart_tab1, chart_tab2 = st.tabs(
@@ -487,8 +876,7 @@ def render_weight_chart():
 
 
 def render_cal_chart():
-    """熱量與三大營養素趨勢"""
-    st.markdown("#### 🔥 熱量與三大營養素趨勢")
+    st.markdown("### 🔥 熱量與三大營養素趨勢")
     recent_logs_df, recent_workouts_df = get_recent_logs(days=7)
     today_dt = date.today()
     date_range = [
@@ -539,7 +927,7 @@ def render_cal_chart():
 
 
 # =============================================================================
-# 主程式流程與動態分流渲染 (Main Program)
+# 2. 主程式流程與動態排序 (Main Program & Dynamic Sorting)
 # =============================================================================
 
 
@@ -568,62 +956,53 @@ def main():
     )
     target_fat = st.sidebar.number_input("脂肪目標 (g)", value=60.0, step=5.0)
 
-    # 恢復數字編輯欄位順序功能
+    # 恢復版面區塊排序功能
     st.sidebar.divider()
-    with st.sidebar.expander("📐 版面區塊順序設定", expanded=False):
-        st.caption("調整下方數字即可自訂主畫面的區塊上下順序：")
-        sec_order = {
-            "新增紀錄區塊": st.number_input(
-                "新增紀錄區塊", value=1, min_value=1, max_value=7
-            ),
-            "當日攝取進度與目標": st.number_input(
-                "當日攝取進度與目標", value=2, min_value=1, max_value=7
-            ),
-            "當日明細清單": st.number_input(
-                "當日明細清單", value=3, min_value=1, max_value=7
-            ),
-            "週重訓彙總表格": st.number_input(
-                "週重訓彙總表格", value=4, min_value=1, max_value=7
-            ),
-            "月跑量與跑鞋追蹤": st.number_input(
-                "月跑量與跑鞋追蹤", value=5, min_value=1, max_value=7
-            ),
-            "近30天體重與體脂趨勢圖": st.number_input(
-                "近30天體重與體脂趨勢圖", value=6, min_value=1, max_value=7
-            ),
-            "熱量與營養趨勢圖": st.number_input(
-                "熱量與營養趨勢圖", value=7, min_value=1, max_value=7
-            ),
-        }
+    with st.sidebar.expander("🧩 版面區塊排序設定", expanded=False):
+        st.caption("數字越小越靠上顯示 (1~7)")
+        pos_add = st.number_input("新增紀錄區塊", value=1, min_value=1, max_value=7)
+        pos_prog = st.number_input("當日進度與目標", value=2, min_value=1, max_value=7)
+        pos_logs = st.number_input("當日明細清單", value=3, min_value=1, max_value=7)
+        pos_weekly = st.number_input("週重訓彙總表格", value=4, min_value=1, max_value=7)
+        pos_shoes = st.number_input("月跑量與跑鞋追蹤", value=5, min_value=1, max_value=7)
+        pos_weight = st.number_input("近30天體重體脂圖", value=6, min_value=1, max_value=7)
+        pos_cal = st.number_input("熱量與營養趨勢圖", value=7, min_value=1, max_value=7)
 
     # 頂部抬頭
     st.title("🏋️ 個人健康 & 運動數據看板")
 
-    # 區塊與對應渲染函式的映射字典 (已移除慢跑心率 vs. 配速散佈圖)
+    # 區塊名稱對應渲染函式的字典
     section_mapping = {
-        "新增紀錄區塊": lambda: render_add_records(date_str),
-        "當日攝取進度與目標": lambda: render_daily_progress(
-            date_str, target_cal, target_p, target_carbs, target_fat
+        "新增紀錄區塊": (
+            pos_add,
+            lambda: render_add_records(date_str),
         ),
-        "週重訓彙總表格": lambda: render_weekly_workout_summary(
-            selected_date
+        "當日進度與目標": (
+            pos_prog,
+            lambda: render_daily_progress(
+                date_str, target_cal, target_p, target_carbs, target_fat
+            ),
         ),
-        "月跑量與跑鞋追蹤": lambda: render_monthly_run_and_shoes(
-            selected_date
+        "當日明細清單": (pos_logs, lambda: render_daily_logs(date_str)),
+        "週重訓彙總表格": (
+            pos_weekly,
+            lambda: render_weekly_workout_summary(selected_date),
         ),
-        "當日明細清單": lambda: render_daily_logs(date_str),
-        "近30天體重與體脂趨勢圖": render_weight_chart,
-        "熱量與營養趨勢圖": render_cal_chart,
+        "月跑量與跑鞋追蹤": (
+            pos_shoes,
+            lambda: render_monthly_run_and_shoes(selected_date),
+        ),
+        "近30天體重體脂圖": (pos_weight, render_weight_chart),
+        "熱量與營養趨勢圖": (pos_cal, render_cal_chart),
     }
 
-    # 根據側邊欄設定的數字大小進行排序
-    ordered_sections = sorted(sec_order.keys(), key=lambda x: sec_order[x])
+    # 根據使用者輸入的數字進行排序 (自訂數字小到大)
+    sorted_sections = sorted(section_mapping.items(), key=lambda x: x[1][0])
 
-    # 依序渲染各個模組
-    for sec_name in ordered_sections:
-        if sec_name in section_mapping:
-            section_mapping[sec_name]()
-            st.divider()
+    # 依排序結果進行動態渲染
+    for name, (_, render_func) in sorted_sections:
+        render_func()
+        st.divider()
 
 
 if __name__ == "__main__":
