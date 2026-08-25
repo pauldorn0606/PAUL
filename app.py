@@ -850,7 +850,6 @@ def render_daily_progress(
         "攝取熱量",
         f"{tot_cal:.0f} kcal",
         delta=f"{tot_cal - target_cal:.0f} kcal",
-        delta_color="inverse",
     )
     c2.metric("運動消耗", f"{burned_cal:.0f} kcal")
     c3.metric(
