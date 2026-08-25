@@ -1382,7 +1382,11 @@ def main():
     )
     target_fat = st.sidebar.number_input("脂肪目標 (g)", value=65.0, step=5.0)
 
-
+    submit_targets = st.form_submit_button("💾 儲存目標設定", use_container_width=True)
+    if submit_targets:
+        save_target_settings(target_cal, target_p, target_carbs, target_fat)
+        st.sidebar.success("目標設定已成功更新！")
+        st.rerun()
 
     # 頂部抬頭
     st.title("🏋️ 個人健康 & 運動數據看板")
