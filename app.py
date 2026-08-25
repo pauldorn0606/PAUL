@@ -585,6 +585,16 @@ def render_add_records(date_str):
 
             elif w_type_sel == "重訓/健身":
                 workout_name = st.text_input("訓練名稱", value="重量訓練")
+                    body_opts = [
+                    "胸部",
+                    "背部",
+                    "腿部",
+                    "肩部",
+                    "手臂",
+                    "核心",
+                    "其他",
+                ]
+                body_part_in = st.selectbox("主要訓練部位", body_opts)
                 notes_in = st.text_area(
                     "動作與組數筆記 (例: 深蹲 80kg x 8r x 4s)", height=80
                 )
