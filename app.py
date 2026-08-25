@@ -584,7 +584,7 @@ def render_add_records(date_str):
                     st.rerun()
 
             elif w_type_sel == "重訓/健身":
-                workout_name = st.text_input("訓練名稱", value="力量訓練")
+                workout_name = st.text_input("訓練名稱", value="重量訓練")
                 body_opts = [
                     "胸部",
                     "背部",
@@ -592,7 +592,7 @@ def render_add_records(date_str):
                     "肩部",
                     "手臂",
                     "核心",
-                    "全身/其他",
+                    "其他",
                 ]
                 body_part_in = st.selectbox("主要訓練部位", body_opts)
                 notes_in = st.text_area(
