@@ -1382,7 +1382,7 @@ def main():
     target_fat = st.sidebar.number_input("脂肪目標 (g)", value=65.0, step=5.0)
 
     # 頂部抬頭
-    st.title("🏋️ 個人健康 & 運動數據看板")
+    st.title("🏋️ PAUL個人健康 & 運動數據看板")
 
     # 區塊與對應渲染函式的映射字典
     section_mapping = {
