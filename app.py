@@ -585,7 +585,7 @@ def render_add_records(date_str):
 
             elif w_type_sel == "重訓/健身":
                 workout_name = st.text_input("訓練名稱", value="重量訓練")
-                    body_opts = [
+                body_opts = [
                     "胸部",
                     "背部",
                     "腿部",
