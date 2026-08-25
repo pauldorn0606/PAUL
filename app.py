@@ -508,7 +508,7 @@ def render_add_records(date_str):
                 food_item = st.text_input("食物名稱", placeholder="例如: 雞腿便當")
                 col_f1, col_f2 = st.columns(2)
                 with col_f1:
-                    f_cal = st.number_input("熱量 (kcal)", min_none=0.0, step=10.0)
+                    f_cal = st.number_input("熱量 (kcal)", min_value=0.0, value=None, placeholder="0",step=10.0)
                     f_p = st.number_input("蛋白質 (g)", min_value=0.0, step=1.0)
                 with col_f2:
                     f_carbs = st.number_input(
