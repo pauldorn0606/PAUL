@@ -1382,6 +1382,57 @@ def main():
     )
     target_fat = st.sidebar.number_input("脂肪目標 (g)", value=60.0, step=5.0)
 
+    # 側邊欄：數字設定顯示順序
+st.sidebar.divider()
+st.sidebar.header("🔢 區塊順序與顯示設定")
+st.sidebar.caption("💡 數字越小越靠前顯示（例如：1 為最上方）。取消勾選可隱藏該區塊。")
+
+DEFAULT_SECTIONS = [
+    ("新增紀錄", 1, True),
+    ("每日進度與營養目標", 2, True),
+    ("當日明細紀錄", 3, True),
+    ("熱量與三大營養素趨勢", 4, True),
+    ("近 30 天體重與體脂趨勢圖", 5, True),
+    ("2026 年 8 月慢跑與跑鞋紀錄", 6, True),
+    ("本週重訓彙總", 7, True),
+]
+
+section_configs = []
+
+with st.sidebar.expander("⚙️ 調整區塊順序與開關", expanded=True):
+    for sec_name, default_order, default_show in DEFAULT_SECTIONS:
+        col_chk, col_num = st.columns([2.5, 1.5])
+        with col_chk:
+            show_sec = st.checkbox(sec_name, value=default_show, key=f"show_{sec_name}")
+        with col_num:
+            order_val = st.number_input(
+                "順序",
+                min_value=1,
+                max_value=20,
+                value=default_order,
+                key=f"order_{sec_name}",
+                label_visibility="collapsed"
+            )
+        if show_sec:
+            section_configs.append((sec_name, order_val))
+
+# 依數字排序區塊
+section_configs.sort(key=lambda x: x[1])
+ordered_sections = [sec[0] for sec in section_configs]
+
+# 側邊欄：資料備份
+st.sidebar.divider()
+st.sidebar.header("💾 資料備份")
+all_df = get_all_logs()
+if not all_df.empty:
+    csv_data = all_df.to_csv(index=False).encode('utf-8-sig')
+    st.sidebar.download_button(
+        label="📥 下載完整歷史紀錄 (CSV)",
+        data=csv_data,
+        file_name=f"nutrition_workout_logs_{date.today().strftime('%Y%m%d')}.csv",
+        mime="text/csv"
+    )
+
     # 頂部抬頭
     st.title("🏋️ 個人健康 & 運動數據看板")
 
