@@ -721,8 +721,8 @@ def render_add_records(date_str):
                             f"**{f_row['name']}** ({f_row['serving_unit']}) — "
                             f"{f_row['calories']:.0f} kcal | "
                             f"P: {f_row['protein']:.1f}g | "
-                            f"C: {f_row['carbs']:.1f}g | "
-                            f"F: {f_row['fat']:.1f}g"
+                            f"F: {f_row['fat']:.1f}g" | "
+                            f"C: {f_row['carbs']:.1f}g
                         )
                     with col_edit:
                         if st.button("✏️ 編輯", key=f"btn_edit_db_food_{f_id}"):
@@ -759,17 +759,17 @@ def render_add_records(date_str):
                                     step=0.5,
                                 )
                             with col_e2:
-                                e_c = st.number_input(
-                                    "碳水 (g)",
-                                    value=float(f_row["carbs"]),
-                                    step=0.5,
-                                )
                                 e_f = st.number_input(
                                     "脂肪 (g)",
                                     value=float(f_row["fat"]),
                                     step=0.5,
                                 )
-
+                                e_c = st.number_input(
+                                    "碳水 (g)",
+                                    value=float(f_row["carbs"]),
+                                    step=0.5,
+                                )
+                                
                             if st.form_submit_button("💾 儲存修改"):
                                 ok, msg = update_food_item(
                                     f_id,
