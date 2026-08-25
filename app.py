@@ -798,7 +798,7 @@ def render_add_records(date_str):
             with st.form("db_food_form", clear_on_submit=True):
                 f_name = st.text_input("食物名稱 (例如: 醬燒雞腿飯)")
                 f_unit = st.text_input(
-                    "單位描述 (例如: 100g、一份、碗)", value="份"
+                    "單位描述 (例如: 100g、一份、碗)", value=None
                 )
                 col_d1, col_d2 = st.columns(2)
                 with col_d1:
