@@ -544,11 +544,13 @@ def render_add_records(date_str):
                     run_dist = st.number_input(
                         "跑步距離 (km)",
                         min_value=0.0,
+                        value=None,
+                        placeholder="0"
                         step=0.5,
                         placeholder="例如 5.2",
                     )
                     run_dur = st.number_input(
-                        "跑步時間 (分鐘)", min_value=0.0, step=1.0
+                        "跑步時間 (分鐘)", min_value=0.0, value=None, placeholder="0", step=1.0
                     )
                     shoe_opts = [
                         "Adidas Boston 13",
@@ -559,10 +561,10 @@ def render_add_records(date_str):
                     run_shoe = st.selectbox("搭配跑鞋", shoe_opts)
                 with col_r2:
                     run_hr = st.number_input(
-                        "平均心率 (bpm)", min_value=0, max_value=220, step=1
+                        "平均心率 (bpm)", min_value=0, value=None, placeholder="0", max_value=220, step=1
                     )
                     cal_burned_in = st.number_input(
-                        "消耗熱量 (kcal)", min_value=0.0, step=10.0
+                        "消耗熱量 (kcal)", min_value=0.0, value=None, placeholder="0", step=10.0
                     )
 
                 submit_run = st.form_submit_button(
@@ -605,7 +607,7 @@ def render_add_records(date_str):
                     )
                 with col_w2:
                     cal_burned_in = st.number_input(
-                        "估計消耗熱量 (kcal)", min_value=0.0, step=10.0
+                        "估計消耗熱量 (kcal)", min_value=0.0, value=None, placeholder="0", step=10.0
                     )
 
                 submit_workout = st.form_submit_button(
@@ -628,7 +630,7 @@ def render_add_records(date_str):
             else:
                 workout_name = st.text_input("運動名稱", value="")
                 cal_burned_in = st.number_input(
-                    "消耗熱量 (kcal)", min_value=0.0, step=10.0
+                    "消耗熱量 (kcal)", min_value=0.0, value=None, placeholder="0", step=10.0
                 )
                 submit_workout = st.form_submit_button(
                     "加入運動紀錄", use_container_width=True
