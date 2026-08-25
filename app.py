@@ -1375,12 +1375,12 @@ def main():
         "目標熱量 (kcal)", value=2200, step=50
     )
     target_p = st.sidebar.number_input(
-        "蛋白質目標 (g)", value=130.0, step=5.0
+        "蛋白質目標 (g)", value=120.0, step=5.0
     )
     target_carbs = st.sidebar.number_input(
-        "碳水目標 (g)", value=250.0, step=5.0
+        "碳水目標 (g)", value=300.0, step=5.0
     )
-    target_fat = st.sidebar.number_input("脂肪目標 (g)", value=60.0, step=5.0)
+    target_fat = st.sidebar.number_input("脂肪目標 (g)", value=65.0, step=5.0)
 
 
 
