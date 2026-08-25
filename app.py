@@ -721,8 +721,8 @@ def render_add_records(date_str):
                             f"**{f_row['name']}** ({f_row['serving_unit']}) — "
                             f"{f_row['calories']:.0f} kcal | "
                             f"P: {f_row['protein']:.1f}g | "
-                            f"F: {f_row['fat']:.1f}g" | "
-                            f"C: {f_row['carbs']:.1f}g
+                            f"F: {f_row['fat']:.1f}g | "
+                            f"C: {f_row['carbs']:.1f}g"
                         )
                     with col_edit:
                         if st.button("✏️ 編輯", key=f"btn_edit_db_food_{f_id}"):
