@@ -1382,6 +1382,19 @@ def main():
     )
     target_fat = st.sidebar.number_input("脂肪目標 (g)", value=60.0, step=5.0)
 
+    # 側邊欄：資料備份
+st.sidebar.divider()
+st.sidebar.header("💾 資料備份")
+all_df = get_all_logs()
+if not all_df.empty:
+    csv_data = all_df.to_csv(index=False).encode('utf-8-sig')
+    st.sidebar.download_button(
+        label="📥 下載完整歷史紀錄 (CSV)",
+        data=csv_data,
+        file_name=f"nutrition_workout_logs_{date.today().strftime('%Y%m%d')}.csv",
+        mime="text/csv"
+    )
+
     # 頂部抬頭
     st.title("🏋️ 個人健康 & 運動數據看板")
 
