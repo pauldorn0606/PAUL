@@ -671,19 +671,21 @@ def render_add_records(date_str):
             with col_w1:
                 w_input = st.number_input(
                     "今日體重 (kg)",
-                    min_value=30.0,
+                    min_value=0.0,
+                    value=None,
                     max_value=200.0,
                     value=float(curr_w) if curr_w else None,
-                    placeholder="如 62.5",
+                    placeholder="0",
                     step=0.1,
                 )
             with col_w2:
                 fat_input = st.number_input(
                     "體脂率 (%)",
-                    min_value=3.0,
-                    max_value=60.0,
+                    min_value=0.0,
+                    value=None,
+                    max_value=100.0,
                     value=float(curr_fat) if curr_fat else None,
-                    placeholder="如 15.2",
+                    placeholder="0",
                     step=0.1,
                 )
 
