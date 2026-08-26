@@ -836,9 +836,9 @@ def render_daily_progress(
 
     tot_cal = logs_df["calories"].sum() if not logs_df.empty else 0.0
     tot_p = logs_df["protein"].sum() if not logs_df.empty else 0.0
-    tot_c = logs_df["carbs"].sum() if not logs_df.empty else 0.0
     tot_f = logs_df["fat"].sum() if not logs_df.empty else 0.0
-
+    tot_c = logs_df["carbs"].sum() if not logs_df.empty else 0.0
+    
     burned_cal = (
         workouts_df["calories_burned"].sum() if not workouts_df.empty else 0.0
     )
