@@ -857,22 +857,22 @@ def render_daily_progress(
         delta=f"{tot_p - target_p:.1f} g",
     )
     c4.metric(
-        "碳水化合物",
-        f"{tot_c:.1f} g",
-        delta=f"{tot_c - target_carbs:.1f} g",
-    )
-    c5.metric(
         "脂肪",
         f"{tot_f:.1f} g",
         delta=f"{tot_f - target_fat:.1f} g",
     )
-
+    c5.metric(
+        "碳水化合物",
+        f"{tot_c:.1f} g",
+        delta=f"{tot_c - target_carbs:.1f} g",
+    )
+    
     p_cal_ratio = (tot_p * 4 / tot_cal * 100) if tot_cal > 0 else 0
-    c_cal_ratio = (tot_c * 4 / tot_cal * 100) if tot_cal > 0 else 0
     f_cal_ratio = (tot_f * 9 / tot_cal * 100) if tot_cal > 0 else 0
-
+    c_cal_ratio = (tot_c * 4 / tot_cal * 100) if tot_cal > 0 else 0
+    
     st.caption(
-        f"💡 今日淨熱量: **{net_cal:.0f}** kcal | 三大營養素熱量佔比 — 蛋白質: **{p_cal_ratio:.1f}%** | 碳水: **{c_cal_ratio:.1f}%** | 脂肪: **{f_cal_ratio:.1f}%**"
+        f"💡 今日淨熱量: **{net_cal:.0f}** kcal | 三大營養素熱量佔比 — 蛋白質: **{p_cal_ratio:.1f}%** | 脂肪: **{f_cal_ratio:.1f}%** | 碳水: **{c_cal_ratio:.1f}%**"
     )
 
 
