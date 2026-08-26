@@ -482,10 +482,11 @@ def render_add_records(date_str):
                 with c_info:
                     calc_cal = f_info["calories"] * servings
                     calc_p = f_info["protein"] * servings
-                    calc_c = f_info["carbs"] * servings
                     calc_f = f_info["fat"] * servings
+                    calc_c = f_info["carbs"] * servings
+                    
                     st.caption(
-                        f"🔥 熱量: **{calc_cal:.0f}** kcal | P: **{calc_p:.1f}**g | C: **{calc_c:.1f}**g | F: **{calc_f:.1f}**g"
+                        f"🔥 熱量: **{calc_cal:.0f}** kcal | P: **{calc_p:.1f}**g | F: **{calc_f:.1f}**g | C: **{calc_c:.1f}**g"
                     )
 
                 if st.button("📥 快速加入飲食紀錄", use_container_width=True):
