@@ -539,7 +539,7 @@ def render_add_records(date_str):
 
         with st.form("add_workout_form", clear_on_submit=True):
             if w_type_sel == "慢跑":
-                workout_name = st.text_input("慢跑名稱", value="路跑 / 慢跑")
+                workout_name = st.text_input("慢跑名稱", value="慢跑")
                 col_r1, col_r2 = st.columns(2)
                 with col_r1:
                     run_dist = st.number_input(
