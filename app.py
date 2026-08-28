@@ -1,9 +1,13 @@
+import os
 import calendar
 from datetime import date, timedelta
 import sqlite3
 import altair as alt
 import pandas as pd
 import streamlit as st
+
+# 加上這行，把目前程式儲存檔案的「真實路徑」印在網頁畫面上
+st.warning(f"目前程式認定的資料夾路徑是：{os.getcwd()}")
 
 DB_NAME = "health_app.db"
 
